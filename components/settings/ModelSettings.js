@@ -165,6 +165,56 @@ export default function ModelSettings({ projectId }) {
     }
   };
 
+  const saveSingleModels = async (model) => {
+    try {
+      console.log('开始保存模型配置...');
+      const response = await fetch(`/api/projects/${projectId}/models`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(model),
+      });
+
+      if (!response.ok) {
+        throw new Error(t('models.saveFailed'));
+      }
+
+      console.log('模型配置保存成功');
+      setSuccess(true);
+      return true; // 返回成功状态
+    } catch (error) {
+      console.error('保存模型配置出错:', error);
+      setError(error.message);
+      return false; // 返回失败状态
+    }
+  };
+
+  const modifySingleModels = async (model) => {
+    try {
+      console.log('开始保存模型配置...');
+      const response = await fetch(`/api/projects/${projectId}/models`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(model),
+      });
+
+      if (!response.ok) {
+        throw new Error(t('models.saveFailed'));
+      }
+
+      console.log('模型配置保存成功');
+      setSuccess(true);
+      return true; // 返回成功状态
+    } catch (error) {
+      console.error('保存模型配置出错:', error);
+      setError(error.message);
+      return false; // 返回失败状态
+    }
+  };
+
   // 打开模型对话框
   const handleOpenModelDialog = (model = null) => {
     if (model) {
@@ -326,6 +376,14 @@ export default function ModelSettings({ projectId }) {
         console.log('已更新 localStorage 中的模型信息:', updatedModel);
         return updatedModels;
       });
+
+      const oldModal = models.find(m => m.id === editingModel.id);
+
+      modifySingleModels({
+        ...oldModal,
+        ...modelForm
+      })
+      
     } else {
       // 添加新模型
       const newModel = { id: `model-${Date.now()}`, ...modelForm };
@@ -333,6 +391,8 @@ export default function ModelSettings({ projectId }) {
         const updatedModels = [...prev, newModel];
         return updatedModels;
       });
+
+      saveSingleModels(newModel)
     }
 
     handleCloseModelDialog();
@@ -347,26 +407,26 @@ export default function ModelSettings({ projectId }) {
   };
 
   // 监听 models 变化并保存
-  useEffect(() => {
-    console.log('models 发生变化:', models);
-    // 跳过初始加载时的保存
-    if (!loading) {
-      console.log('触发保存操作...');
-      saveAllModels().then(() => {
-        // 保存成功后，触发自定义事件通知 layout.js 刷新模型数据
-        console.log('触发模型配置变化事件');
-        const event = new CustomEvent('model-config-changed');
-        window.dispatchEvent(event);
+  // useEffect(() => {
+  //   console.log('models 发生变化:', models);
+  //   // 跳过初始加载时的保存
+  //   if (!loading) {
+  //     console.log('触发保存操作...');
+  //     saveAllModels().then(() => {
+  //       // 保存成功后，触发自定义事件通知 layout.js 刷新模型数据
+  //       console.log('触发模型配置变化事件');
+  //       const event = new CustomEvent('model-config-changed');
+  //       window.dispatchEvent(event);
 
-        // 如果有选中的模型，需要检查它是否还存在
-        const selectedModelInfo = localStorage.getItem('selectedModelInfo');
-        if (selectedModelInfo) {
-          const sId = JSON.parse(selectedModelInfo).id;
-          const modelExists = models.some(m => m.id === sId);
-        }
-      });
-    }
-  }, [models]);
+  //       // 如果有选中的模型，需要检查它是否还存在
+  //       const selectedModelInfo = localStorage.getItem('selectedModelInfo');
+  //       if (selectedModelInfo) {
+  //         const sId = JSON.parse(selectedModelInfo).id;
+  //         const modelExists = models.some(m => m.id === sId);
+  //       }
+  //     });
+  //   }
+  // }, [models]);
 
   const handleCloseSnackbar = () => {
     setSuccess(false);

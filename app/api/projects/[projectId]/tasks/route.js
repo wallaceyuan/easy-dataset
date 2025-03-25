@@ -10,7 +10,6 @@ export async function GET(request, { params }) {
   return NextAPI(handler)(request, params)
 }
 
-
 async function handler(_, params) {
 
   try {
@@ -60,7 +59,7 @@ async function handlerPUT(request, params) {
     }
 
     try {
-      const project = await MongoProject.findOne({ id: projectId });
+      const project = await MongoProject.findOne({ projectId });
       if (!project) {
         throw { error: '项目不存在', status: 500 }
       }
@@ -74,7 +73,7 @@ async function handlerPUT(request, params) {
 
       if (existingTask) {
         // 如果存在，则更新记录
-        const updatedTask = await MongoTask.findOneAndUpdate(
+        await MongoTask.findOneAndUpdate(
           { projectId },
           { $set: taskConfig },
           { new: true } // 返回更新后的文档
@@ -96,6 +95,6 @@ async function handlerPUT(request, params) {
       throw { error: error, status: 500 }
     }
   } catch (error) {
-    throw { error: '更新任务配置失败', status: 500 };
+    throw { error: `更新任务配置失败: ${JSON.stringify(error)}`, status: 500 };
   }
 }

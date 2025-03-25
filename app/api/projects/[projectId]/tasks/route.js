@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server';
-import path from 'path';
-import fs from 'fs/promises';
-import { getProjectRoot } from '@/lib/db/base';
-import { getTaskConfig } from '@/lib/db/projects';
+import { NextAPI } from '@/service/middleware/entry';
+import { DEFAULT_SETTINGS } from '@/constant/setting';
+
+import { MongoTask } from '@dataset/service/core/tasks/schema'
+import { MongoProject } from '@dataset/service/core/projects/schema'
 
 // 获取任务配置
 export async function GET(request, { params }) {
+  return NextAPI(handler)(request, params)
+}
+
+
+async function handler(_, params) {
+
   try {
     const { projectId } = params;
 
@@ -14,34 +21,34 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: '项目 ID 不能为空' }, { status: 400 });
     }
 
-    // 获取项目根目录
-    const projectRoot = await getProjectRoot();
-    const projectPath = path.join(projectRoot, projectId);
+    const taskConfig = await MongoTask.findOne({ projectId });
 
-    // 检查项目是否存在
-    try {
-      await fs.access(projectPath);
-    } catch (error) {
-      return NextResponse.json({ error: '项目不存在' }, { status: 404 });
+    if (!taskConfig) {
+      console.log(`No tasks found for projectId: ${projectId}`);
+      return DEFAULT_SETTINGS;
+    }else{
+      return taskConfig
     }
-
-    const taskConfig = await getTaskConfig(projectId);
-    return NextResponse.json(taskConfig);
 
   } catch (error) {
     console.error('获取任务配置出错:', error);
-    return NextResponse.json({ error: '获取任务配置失败' }, { status: 500 });
+    throw new Error(JSON.stringify({ error: '获取任务配置失败', status: 500 }));
   }
 }
 
+
 // 更新任务配置
 export async function PUT(request, { params }) {
+  return NextAPI(handlerPUT)(request, params)
+}
+
+async function handlerPUT(request, params) {
   try {
     const { projectId } = params;
 
     // 验证项目 ID
     if (!projectId) {
-      return NextResponse.json({ error: '项目 ID 不能为空' }, { status: 400 });
+      throw { error: '项目 ID 不能为空', status: 400 }
     }
 
     // 获取请求体
@@ -49,29 +56,46 @@ export async function PUT(request, { params }) {
 
     // 验证请求体
     if (!taskConfig) {
-      return NextResponse.json({ error: '任务配置不能为空' }, { status: 400 });
+      throw { error: '任务配置不能为空', status: 400 };
     }
 
-    // 获取项目根目录
-    const projectRoot = await getProjectRoot();
-    const projectPath = path.join(projectRoot, projectId);
-
-    // 检查项目是否存在
     try {
-      await fs.access(projectPath);
+      const project = await MongoProject.findOne({ id: projectId });
+      if (!project) {
+        throw { error: '项目不存在', status: 500 }
+      }
     } catch (error) {
-      return NextResponse.json({ error: '项目不存在' }, { status: 404 });
+      throw { error: 'Error fetching project:', error, status: 500 }
     }
 
-    // 获取任务配置文件路径
-    const taskConfigPath = path.join(projectPath, 'task-config.json');
+    try {
+      // 2. 检查 tasks 表中是否存在该 projectId 的记录
+      const existingTask = await MongoTask.findOne({ projectId });
 
-    // 写入任务配置文件
-    await fs.writeFile(taskConfigPath, JSON.stringify(taskConfig, null, 2), 'utf-8');
-
-    return NextResponse.json({ message: '任务配置已更新' });
+      if (existingTask) {
+        // 如果存在，则更新记录
+        const updatedTask = await MongoTask.findOneAndUpdate(
+          { projectId },
+          { $set: taskConfig },
+          { new: true } // 返回更新后的文档
+        );
+        return { message: '任务配置已更新' }
+      } else {
+        // 如果不存在，则创建一条新记录
+        const newTask = new MongoTask({
+          projectId,
+          ...taskConfig,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+        const savedTask = await newTask.save();
+        return { message: '任务配置已更新' };
+      }
+ 
+    } catch (error) {
+      throw { error: error, status: 500 }
+    }
   } catch (error) {
-    console.error('更新任务配置出错:', error);
-    return NextResponse.json({ error: '更新任务配置失败' }, { status: 500 });
+    throw { error: '更新任务配置失败', status: 500 };
   }
 }

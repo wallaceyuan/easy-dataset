@@ -50,17 +50,17 @@ export async function POST(request, { params }) {
     const tags = extractJsonFromLLMOutput(response);
 
 
-    if (!response || !tags) {
-      // 删除前面生成的文件
-      await deleteFile(projectId, fileName);
-      const uploadedFiles = project.uploadedFiles || [];
-      const updatedFiles = uploadedFiles.filter(f => f !== fileName);
-      await updateProject(projectId, {
-        ...project,
-        uploadedFiles: updatedFiles
-      });
-      return NextResponse.json({ error: 'AI 分析失败，请检查模型配置，删除文件后重试！' }, { status: 400 });
-    }
+    // if (!response || !tags) {
+    //   // 删除前面生成的文件
+    //   await deleteFile(projectId, fileName);
+    //   const uploadedFiles = project.uploadedFiles || [];
+    //   const updatedFiles = uploadedFiles.filter(f => f !== fileName);
+    //   await updateProject(projectId, {
+    //     ...project,
+    //     uploadedFiles: updatedFiles
+    //   });
+    //   return NextResponse.json({ error: 'AI 分析失败，请检查模型配置，删除文件后重试！' }, { status: 400 });
+    // }
     console.log(projectId, fileName, '领域树构建完成:', tags);
     await saveTags(projectId, tags);
 
